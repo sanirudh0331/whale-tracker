@@ -1,109 +1,125 @@
 {% extends "base.html" %}
 
 {% block content %}
+<!-- Stats Bar -->
+<div class="mb-8">
+    <div id="stats"
+         hx-get="/partials/stats?platform={{ platform }}"
+         hx-trigger="load, every {{ refresh_seconds }}s"
+         hx-swap="innerHTML">
+        <div class="grid grid-cols-4 gap-6">
+            {% for i in range(4) %}
+            <div class="h-16 rounded-lg bg-white/[0.02] animate-pulse"></div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Main Content Grid -->
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <!-- Whale Trades -->
+    <!-- Whale Trades - Main Column -->
     <div class="lg:col-span-2">
-        <div class="bg-gray-800 rounded-lg border border-gray-700">
-            <div class="px-6 py-4 border-b border-gray-700 flex justify-between items-center">
-                <div class="flex items-center gap-4">
-                    <h2 class="text-xl font-semibold {% if platform == 'kalshi' %}text-blue-400{% else %}text-purple-400{% endif %}">
+        <div class="card rounded-xl overflow-hidden">
+            <!-- Header -->
+            <div class="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-[14px] font-medium text-white">
                         {% if platform == 'kalshi' %}
-                            {% if insider_only %}Potential Insider Trades{% else %}Recent Whale Trades{% endif %}
+                            {% if insider_only %}Potential Insider Trades{% else %}Whale Trades{% endif %}
                         {% else %}
-                            {% if insider_only %}High Activity Markets{% else %}High Volume Markets{% endif %}
+                            {% if insider_only %}High Activity{% else %}Volume Leaders{% endif %}
                         {% endif %}
                     </h2>
-                    <!-- Insider Filter Toggle -->
-                    <a href="/?platform={{ platform }}&sort={{ sort }}{% if not insider_only %}&insider=1{% endif %}"
-                       class="px-3 py-1 rounded-full text-xs font-medium transition-colors
-                              {% if insider_only %}bg-red-600 text-white{% else %}bg-gray-700 text-gray-300 hover:bg-red-600 hover:text-white{% endif %}">
-                        {% if insider_only %}Show All{% else %}Insider Only (>50%){% endif %}
+
+                    <!-- Insider Toggle -->
+                    <a href="/?platform={{ platform }}&threshold={{ threshold }}&hours={{ hours }}&sort={{ sort }}{% if not insider_only %}&insider=1{% endif %}"
+                       class="px-2.5 py-1 rounded-md text-[11px] font-medium transition-all
+                              {% if insider_only %}
+                              bg-rose-500/10 text-rose-400 border border-rose-500/20
+                              {% else %}
+                              bg-white/[0.03] text-neutral-500 border border-white/[0.06] hover:border-white/[0.1] hover:text-neutral-400
+                              {% endif %}">
+                        {% if insider_only %}Clear Filter{% else %}Insider Only{% endif %}
                     </a>
-                    <!-- Sort Dropdown -->
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <!-- Sort -->
                     <select onchange="updateParam('sort', this.value)"
-                            class="bg-gray-700 text-gray-200 text-xs rounded px-2 py-1 border border-gray-600 focus:outline-none focus:border-blue-500">
+                            class="bg-white/[0.03] text-neutral-400 text-[12px] rounded-lg px-2.5 py-1.5 border border-white/[0.06] focus:outline-none cursor-pointer">
                         <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Newest</option>
                         <option value="oldest" {% if sort == 'oldest' %}selected{% endif %}>Oldest</option>
-                        <option value="size_desc" {% if sort == 'size_desc' %}selected{% endif %}>Size: High→Low</option>
-                        <option value="size_asc" {% if sort == 'size_asc' %}selected{% endif %}>Size: Low→High</option>
+                        <option value="size_desc" {% if sort == 'size_desc' %}selected{% endif %}>Largest</option>
+                        <option value="size_asc" {% if sort == 'size_asc' %}selected{% endif %}>Smallest</option>
                     </select>
                 </div>
-                <span class="flex items-center gap-2 text-sm text-gray-400">
-                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                    Live
-                </span>
             </div>
+
+            <!-- Content -->
             <div id="whale-trades"
                  hx-get="/partials/whale-trades?platform={{ platform }}&threshold={{ threshold }}&hours={{ hours }}&sort={{ sort }}{% if insider_only %}&insider=1{% endif %}"
                  hx-trigger="load, every {{ refresh_seconds }}s"
                  hx-swap="innerHTML">
-                <div class="p-6 text-center text-gray-400">Loading...</div>
+                <div class="p-8 text-center">
+                    <div class="inline-block w-5 h-5 border-2 border-white/10 border-t-white/40 rounded-full animate-spin"></div>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Sidebar -->
     <div class="space-y-6">
-        <!-- Stats -->
-        <div class="bg-gray-800 rounded-lg border border-gray-700 p-6">
-            <h2 class="text-lg font-semibold {% if platform == 'kalshi' %}text-blue-400{% else %}text-purple-400{% endif %} mb-4">
-                Stats
-            </h2>
-            <div id="stats"
-                 hx-get="/partials/stats?platform={{ platform }}"
-                 hx-trigger="load, every {{ refresh_seconds }}s"
-                 hx-swap="innerHTML">
-                <div class="text-center text-gray-400">Loading...</div>
-            </div>
-        </div>
-
-        <!-- Insider Score Legend -->
-        <div class="bg-gray-800 rounded-lg border border-gray-700 p-4">
-            <h3 class="text-sm font-semibold text-gray-300 mb-3">Insider Score Legend</h3>
-            <div class="space-y-2 text-xs">
-                <div class="flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-red-400"></span>
-                    <span class="text-gray-400">High (70%+) - Strong signals</span>
+        <!-- Score Legend -->
+        <div class="card rounded-xl p-5">
+            <h3 class="text-[12px] font-medium text-neutral-500 uppercase tracking-wide mb-4">Insider Score</h3>
+            <div class="space-y-2.5">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+                    <span class="text-[12px] text-neutral-400">70%+ High probability</span>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-orange-400"></span>
-                    <span class="text-gray-400">Medium (50-69%) - Notable</span>
+                <div class="flex items-center gap-2.5">
+                    <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                    <span class="text-[12px] text-neutral-400">50-69% Notable activity</span>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-yellow-400"></span>
-                    <span class="text-gray-400">Low (30-49%) - Minor flags</span>
+                <div class="flex items-center gap-2.5">
+                    <span class="w-2 h-2 rounded-full bg-yellow-400"></span>
+                    <span class="text-[12px] text-neutral-400">30-49% Minor signals</span>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-gray-500"></span>
-                    <span class="text-gray-400">Unlikely (<30%)</span>
+                <div class="flex items-center gap-2.5">
+                    <span class="w-2 h-2 rounded-full bg-neutral-600"></span>
+                    <span class="text-[12px] text-neutral-400">&lt;30% Unlikely</span>
                 </div>
             </div>
         </div>
 
         <!-- Top Markets -->
-        <div class="bg-gray-800 rounded-lg border border-gray-700">
-            <div class="px-6 py-4 border-b border-gray-700">
-                <h2 class="text-lg font-semibold text-green-400">Top Markets by Volume</h2>
+        <div class="card rounded-xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-white/[0.06]">
+                <h2 class="text-[12px] font-medium text-neutral-500 uppercase tracking-wide">Top Markets</h2>
             </div>
             <div id="top-markets"
                  hx-get="/partials/top-markets?platform={{ platform }}"
                  hx-trigger="load, every {{ refresh_seconds }}s"
                  hx-swap="innerHTML">
-                <div class="p-6 text-center text-gray-400">Loading...</div>
+                <div class="p-6 text-center">
+                    <div class="inline-block w-4 h-4 border-2 border-white/10 border-t-white/40 rounded-full animate-spin"></div>
+                </div>
             </div>
         </div>
 
         <!-- Recent Alerts -->
-        <div class="bg-gray-800 rounded-lg border border-gray-700">
-            <div class="px-6 py-4 border-b border-gray-700">
-                <h2 class="text-lg font-semibold text-yellow-400">Recent Alerts</h2>
+        <div class="card rounded-xl overflow-hidden">
+            <div class="px-5 py-4 border-b border-white/[0.06]">
+                <h2 class="text-[12px] font-medium text-neutral-500 uppercase tracking-wide">Alerts</h2>
             </div>
             <div id="alerts"
                  hx-get="/partials/alerts?platform={{ platform }}"
                  hx-trigger="load, every {{ refresh_seconds }}s"
-                 hx-swap="innerHTML">
-                <div class="p-6 text-center text-gray-400">Loading...</div>
+                 hx-swap="innerHTML"
+                 class="max-h-72 overflow-y-auto">
+                <div class="p-6 text-center">
+                    <div class="inline-block w-4 h-4 border-2 border-white/10 border-t-white/40 rounded-full animate-spin"></div>
+                </div>
             </div>
         </div>
     </div>

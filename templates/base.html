@@ -3,44 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Whale Tracker - {{ platform|title }}</title>
+    <title>Whale Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        border: 'rgba(255, 255, 255, 0.08)',
+                        'border-hover': 'rgba(255, 255, 255, 0.12)',
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        .fade-in { animation: fadeIn 0.3s ease-in; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .platform-toggle { transition: all 0.2s ease; }
-        .platform-toggle.active { transform: scale(1.05); }
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        body { background: #000; }
+
+        /* Subtle animations */
+        .fade-in { animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+        /* Segmented control */
+        .segment-control { background: rgba(255,255,255,0.03); }
+        .segment-btn { transition: all 0.15s ease; }
+        .segment-btn.active { background: rgba(255,255,255,0.1); color: #fff; }
+        .segment-btn:not(.active):hover { color: rgba(255,255,255,0.8); }
+
+        /* Select styling */
+        select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            padding-right: 28px;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        /* Card hover effect */
+        .card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06);
+            transition: border-color 0.15s ease;
+        }
+        .card:hover { border-color: rgba(255,255,255,0.1); }
+
+        /* Subtle gradient background */
+        .gradient-bg {
+            background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(120,119,198,0.1), transparent);
+        }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen">
-    <nav class="bg-gray-800 border-b border-gray-700 px-6 py-4">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
+<body class="text-neutral-300 min-h-screen gradient-bg">
+    <!-- Navigation -->
+    <nav class="border-b border-white/[0.06] sticky top-0 z-50 backdrop-blur-xl bg-black/80">
+        <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+            <!-- Logo & Platform Toggle -->
             <div class="flex items-center gap-6">
-                <h1 class="text-2xl font-bold">
-                    <span class="text-blue-400">Whale</span> Tracker
-                </h1>
-                <!-- Platform Toggle -->
-                <div class="flex bg-gray-700 rounded-lg p-1">
-                    <a href="/?platform=kalshi"
-                       class="platform-toggle px-4 py-2 rounded-md text-sm font-medium transition-colors
-                              {% if platform == 'kalshi' %}bg-blue-600 text-white active{% else %}text-gray-300 hover:text-white{% endif %}">
+                <a href="/" class="text-white font-semibold text-[15px] tracking-tight">
+                    Whale Tracker
+                </a>
+
+                <!-- Platform Segmented Control -->
+                <div class="segment-control flex rounded-lg p-0.5">
+                    <a href="/?platform=kalshi&threshold={{ threshold }}&hours={{ hours }}"
+                       class="segment-btn px-3 py-1.5 rounded-md text-[13px] font-medium {% if platform == 'kalshi' %}active{% else %}text-neutral-500{% endif %}">
                         Kalshi
                     </a>
-                    <a href="/?platform=polymarket"
-                       class="platform-toggle px-4 py-2 rounded-md text-sm font-medium transition-colors
-                              {% if platform == 'polymarket' %}bg-purple-600 text-white active{% else %}text-gray-300 hover:text-white{% endif %}">
+                    <a href="/?platform=polymarket&threshold={{ threshold }}&hours={{ hours }}"
+                       class="segment-btn px-3 py-1.5 rounded-md text-[13px] font-medium {% if platform == 'polymarket' %}active{% else %}text-neutral-500{% endif %}">
                         Polymarket
                     </a>
                 </div>
             </div>
+
+            <!-- Filters -->
             <div class="flex items-center gap-4">
-                <!-- Threshold Selector -->
                 <div class="flex items-center gap-2">
-                    <span class="text-sm text-gray-400">Min:</span>
+                    <span class="text-[12px] text-neutral-500 uppercase tracking-wide">Min</span>
                     <select id="threshold-select"
                             onchange="updateParam('threshold', this.value)"
-                            class="bg-gray-700 text-gray-200 text-sm rounded px-2 py-1 border border-gray-600 focus:outline-none focus:border-blue-500">
+                            class="bg-white/[0.03] text-neutral-300 text-[13px] rounded-lg px-3 py-1.5 border border-white/[0.06] focus:outline-none focus:border-white/[0.15] cursor-pointer">
                         {% if platform == 'kalshi' %}
                         <option value="100" {% if threshold == 100 %}selected{% endif %}>$100</option>
                         <option value="500" {% if threshold == 500 %}selected{% endif %}>$500</option>
@@ -58,12 +115,12 @@
                         {% endif %}
                     </select>
                 </div>
-                <!-- Time Filter -->
+
                 <div class="flex items-center gap-2">
-                    <span class="text-sm text-gray-400">Time:</span>
+                    <span class="text-[12px] text-neutral-500 uppercase tracking-wide">Period</span>
                     <select id="hours-select"
                             onchange="updateParam('hours', this.value)"
-                            class="bg-gray-700 text-gray-200 text-sm rounded px-2 py-1 border border-gray-600 focus:outline-none focus:border-blue-500">
+                            class="bg-white/[0.03] text-neutral-300 text-[13px] rounded-lg px-3 py-1.5 border border-white/[0.06] focus:outline-none focus:border-white/[0.15] cursor-pointer">
                         <option value="1" {% if hours == 1 %}selected{% endif %}>1h</option>
                         <option value="6" {% if hours == 6 %}selected{% endif %}>6h</option>
                         <option value="24" {% if hours == 24 %}selected{% endif %}>24h</option>
@@ -72,30 +129,36 @@
                         <option value="168" {% if hours == 168 %}selected{% endif %}>7d</option>
                     </select>
                 </div>
-                <span class="text-sm text-gray-500">|</span>
-                <span class="text-sm text-gray-400">Auto-refresh</span>
+
+                <!-- Live indicator -->
+                <div class="flex items-center gap-1.5 text-[12px] text-neutral-500">
+                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                    Live
+                </div>
             </div>
-            <script>
-                function updateParam(param, value) {
-                    const url = new URL(window.location);
-                    url.searchParams.set(param, value);
-                    window.location = url.toString();
-                }
-            </script>
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-6 py-8">
+    <script>
+        function updateParam(param, value) {
+            const url = new URL(window.location);
+            url.searchParams.set(param, value);
+            window.location = url.toString();
+        }
+    </script>
+
+    <main class="max-w-6xl mx-auto px-6 py-8">
         {% block content %}{% endblock %}
     </main>
 
-    <footer class="text-center text-gray-500 text-sm py-8">
-        Data updates every 5 minutes |
-        {% if platform == 'kalshi' %}
-        Showing Kalshi trades over ${{ "{:,}".format(threshold) }}
-        {% else %}
-        Showing Polymarket markets with over ${{ "{:,}".format(threshold) }} volume
-        {% endif %}
+    <!-- Footer -->
+    <footer class="border-t border-white/[0.06] mt-12">
+        <div class="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between text-[12px] text-neutral-600">
+            <span>Auto-refresh every 5 min</span>
+            <span>
+                {% if platform == 'kalshi' %}Kalshi{% else %}Polymarket{% endif %} trades over ${{ "{:,}".format(threshold) }}
+            </span>
+        </div>
     </footer>
 </body>
 </html>

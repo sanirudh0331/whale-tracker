@@ -1,18 +1,18 @@
-<div class="grid grid-cols-2 gap-4">
-    <div>
-        <div class="text-2xl font-bold text-white">{{ "{:,}".format(stats.whale_trades) }}</div>
-        <div class="text-xs text-gray-400">Whale Trades</div>
+<div class="grid grid-cols-4 gap-6">
+    <div class="card rounded-xl p-5">
+        <div class="text-[11px] text-neutral-500 uppercase tracking-wide mb-1">Whale Trades</div>
+        <div class="text-[22px] font-semibold text-white tabular-nums">{{ "{:,}".format(stats.whale_trades) }}</div>
     </div>
-    <div>
-        <div class="text-2xl font-bold text-white">{{ stats.whale_volume|format_number }}</div>
-        <div class="text-xs text-gray-400">Whale Volume</div>
+    <div class="card rounded-xl p-5">
+        <div class="text-[11px] text-neutral-500 uppercase tracking-wide mb-1">Volume</div>
+        <div class="text-[22px] font-semibold text-white tabular-nums">{{ stats.whale_volume|format_number }}</div>
     </div>
-    <div>
-        <div class="text-2xl font-bold text-white">{{ "{:,}".format(stats.markets_tracked) }}</div>
-        <div class="text-xs text-gray-400">Markets</div>
+    <div class="card rounded-xl p-5">
+        <div class="text-[11px] text-neutral-500 uppercase tracking-wide mb-1">Markets</div>
+        <div class="text-[22px] font-semibold text-white tabular-nums">{{ "{:,}".format(stats.markets_tracked) }}</div>
     </div>
-    <div>
-        <div class="text-2xl font-bold text-white">${{ "{:,}".format(stats.threshold) }}</div>
-        <div class="text-xs text-gray-400">Threshold</div>
+    <div class="card rounded-xl p-5">
+        <div class="text-[11px] text-neutral-500 uppercase tracking-wide mb-1">Threshold</div>
+        <div class="text-[22px] font-semibold text-white tabular-nums">${{ "{:,}".format(stats.threshold) }}</div>
     </div>
 </div>
