@@ -27,10 +27,10 @@
             <span>{{ "{:,}".format(trade.count) }} contracts @ {{ trade.price }}c</span>
         </div>
         {% else %}
-        <!-- Polymarket trade format -->
+        <!-- Polymarket market volume format -->
         <div class="flex justify-between items-start mb-2">
             <div class="flex items-center gap-3">
-                <span class="text-lg font-semibold {% if 'BUY' in trade.side %}text-green-400{% elif 'SELL' in trade.side %}text-red-400{% else %}text-purple-400{% endif %}">
+                <span class="text-lg font-semibold {% if 'YES' in trade.side and '@' in trade.side %}text-green-400{% elif 'NO' in trade.side and '@' in trade.side %}text-red-400{% else %}text-purple-400{% endif %}">
                     {{ trade.side }} ${{ "{:,.0f}".format(trade.size) }}
                 </span>
                 <!-- Insider Score Badge -->
@@ -45,10 +45,18 @@
                 {{ trade.timestamp|timestamp_to_relative }}
             </span>
         </div>
-        <div class="text-sm text-gray-300 mb-2">{{ trade.market_question|truncate(80) }}</div>
+        <div class="text-sm text-gray-300 mb-2">
+            {% if trade.slug %}
+            <a href="https://polymarket.com/event/{{ trade.slug }}" target="_blank" class="hover:text-purple-400 hover:underline">
+                {{ trade.market_question|truncate(80) }}
+            </a>
+            {% else %}
+            {{ trade.market_question|truncate(80) }}
+            {% endif %}
+        </div>
         <div class="flex justify-between items-center text-xs text-gray-500">
-            <span class="font-mono">{{ trade.wallet_short }}</span>
-            <span>@ ${{ "%.2f"|format(trade.price) }}</span>
+            <span class="text-purple-400">24h Volume</span>
+            <span>Current: ${{ "%.2f"|format(trade.price) }}</span>
         </div>
         {% endif %}
     </div>

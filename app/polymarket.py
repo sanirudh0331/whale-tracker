@@ -137,9 +137,9 @@ async def fetch_polymarket_data() -> dict:
 
                             await db.execute(
                                 """INSERT OR IGNORE INTO polymarket_trades
-                                   (id, market_id, market_question, wallet, side, size, price, timestamp, is_whale, insider_score)
-                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                                (trade_id, market_id, question, "market", side,
+                                   (id, market_id, market_question, slug, wallet, side, size, price, timestamp, is_whale, insider_score)
+                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                (trade_id, market_id, question, slug, "market", side,
                                  volume_24h, yes_price, int(time.time()), 1, insider_score)
                             )
 

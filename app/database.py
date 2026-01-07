@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS polymarket_trades (
     id TEXT PRIMARY KEY,
     market_id TEXT NOT NULL,
     market_question TEXT,
+    slug TEXT,
     wallet TEXT NOT NULL,
     side TEXT NOT NULL,
     size REAL NOT NULL,
