@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whale Tracker - {{ platform|title }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .platform-toggle { transition: all 0.2s ease; }
+        .platform-toggle.active { transform: scale(1.05); }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <nav class="bg-gray-800 border-b border-gray-700 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-6">
+                <h1 class="text-2xl font-bold">
+                    <span class="text-blue-400">Whale</span> Tracker
+                </h1>
+                <!-- Platform Toggle -->
+                <div class="flex bg-gray-700 rounded-lg p-1">
+                    <a href="/?platform=kalshi"
+                       class="platform-toggle px-4 py-2 rounded-md text-sm font-medium transition-colors
+                              {% if platform == 'kalshi' %}bg-blue-600 text-white active{% else %}text-gray-300 hover:text-white{% endif %}">
+                        Kalshi
+                    </a>
+                    <a href="/?platform=polymarket"
+                       class="platform-toggle px-4 py-2 rounded-md text-sm font-medium transition-colors
+                              {% if platform == 'polymarket' %}bg-purple-600 text-white active{% else %}text-gray-300 hover:text-white{% endif %}">
+                        Polymarket
+                    </a>
+                </div>
+            </div>
+            <div class="text-sm text-gray-400">
+                Auto-refresh: {{ refresh_seconds // 60 }}min |
+                Threshold: ${{ "{:,}".format(kalshi_threshold if platform == 'kalshi' else polymarket_threshold) }}
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-6 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="text-center text-gray-500 text-sm py-8">
+        Data updates every 5 minutes |
+        {% if platform == 'kalshi' %}
+        Kalshi trades over ${{ "{:,}".format(kalshi_threshold) }}
+        {% else %}
+        Polymarket 24h volume over ${{ "{:,}".format(polymarket_threshold) }}
+        {% endif %}
+    </footer>
+</body>
+</html>

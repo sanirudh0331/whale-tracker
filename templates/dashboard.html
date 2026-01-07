@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Whale Trades -->
+    <div class="lg:col-span-2">
+        <div class="bg-gray-800 rounded-lg border border-gray-700">
+            <div class="px-6 py-4 border-b border-gray-700 flex justify-between items-center">
+                <h2 class="text-xl font-semibold {% if platform == 'kalshi' %}text-blue-400{% else %}text-purple-400{% endif %}">
+                    Recent Whale Trades
+                </h2>
+                <span class="flex items-center gap-2 text-sm text-gray-400">
+                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    Live
+                </span>
+            </div>
+            <div id="whale-trades"
+                 hx-get="/partials/whale-trades?platform={{ platform }}"
+                 hx-trigger="load, every {{ refresh_seconds }}s"
+                 hx-swap="innerHTML">
+                <div class="p-6 text-center text-gray-400">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-6">
+        <!-- Stats -->
+        <div class="bg-gray-800 rounded-lg border border-gray-700 p-6">
+            <h2 class="text-lg font-semibold {% if platform == 'kalshi' %}text-blue-400{% else %}text-purple-400{% endif %} mb-4">
+                Stats
+            </h2>
+            <div id="stats"
+                 hx-get="/partials/stats?platform={{ platform }}"
+                 hx-trigger="load, every {{ refresh_seconds }}s"
+                 hx-swap="innerHTML">
+                <div class="text-center text-gray-400">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Top Markets -->
+        <div class="bg-gray-800 rounded-lg border border-gray-700">
+            <div class="px-6 py-4 border-b border-gray-700">
+                <h2 class="text-lg font-semibold text-green-400">Top Markets by Volume</h2>
+            </div>
+            <div id="top-markets"
+                 hx-get="/partials/top-markets?platform={{ platform }}"
+                 hx-trigger="load, every {{ refresh_seconds }}s"
+                 hx-swap="innerHTML">
+                <div class="p-6 text-center text-gray-400">Loading...</div>
+            </div>
+        </div>
+
+        <!-- Recent Alerts -->
+        <div class="bg-gray-800 rounded-lg border border-gray-700">
+            <div class="px-6 py-4 border-b border-gray-700">
+                <h2 class="text-lg font-semibold text-yellow-400">Recent Alerts</h2>
+            </div>
+            <div id="alerts"
+                 hx-get="/partials/alerts?platform={{ platform }}"
+                 hx-trigger="load, every {{ refresh_seconds }}s"
+                 hx-swap="innerHTML">
+                <div class="p-6 text-center text-gray-400">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,32 @@
+{% if markets %}
+<div class="divide-y divide-gray-700">
+    {% for market in markets[:10] %}
+    <div class="p-4 hover:bg-gray-750">
+        {% if platform == 'kalshi' %}
+        <div class="flex justify-between items-start mb-1">
+            <span class="text-sm text-gray-200 font-medium">{{ market.title|truncate(50) }}</span>
+        </div>
+        <div class="flex justify-between items-center text-xs">
+            <span class="font-mono text-gray-500">{{ market.ticker }}</span>
+            <div class="flex gap-3">
+                <span class="text-green-400">Y: {{ market.yes_price }}c</span>
+                <span class="text-gray-400">Vol: {{ market.volume_24h|format_number if market.volume_24h else '$0' }}</span>
+            </div>
+        </div>
+        {% else %}
+        <div class="flex justify-between items-start mb-1">
+            <span class="text-sm text-gray-200 font-medium">{{ market.question|truncate(50) }}</span>
+        </div>
+        <div class="flex justify-between items-center text-xs">
+            <span class="font-mono text-gray-500">{{ market.slug|truncate(20) if market.slug else market.id[:12] }}</span>
+            <span class="text-purple-400">24h: {{ market.volume_24h|format_number if market.volume_24h else '$0' }}</span>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="p-6 text-center text-gray-400">
+    No markets data yet...
+</div>
+{% endif %}

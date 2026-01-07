@@ -1,0 +1,43 @@
+{% if trades %}
+<div class="divide-y divide-gray-700">
+    {% for trade in trades %}
+    <div class="p-4 hover:bg-gray-750 fade-in">
+        {% if platform == 'kalshi' %}
+        <!-- Kalshi trade format -->
+        <div class="flex justify-between items-start mb-2">
+            <span class="text-lg font-semibold {% if trade.taker_side == 'yes' %}text-green-400{% else %}text-red-400{% endif %}">
+                {{ trade.taker_side|upper }} ${{ "{:,.0f}".format(trade.usd_value) }}
+            </span>
+            <span class="text-xs text-gray-500">
+                {{ trade.timestamp|timestamp_to_relative }}
+            </span>
+        </div>
+        <div class="text-sm text-gray-300 mb-2">{{ trade.market_title|truncate(80) }}</div>
+        <div class="flex justify-between items-center text-xs text-gray-500">
+            <span class="font-mono bg-gray-700 px-2 py-0.5 rounded">{{ trade.ticker }}</span>
+            <span>{{ "{:,}".format(trade.count) }} contracts @ {{ trade.price }}c</span>
+        </div>
+        {% else %}
+        <!-- Polymarket trade format -->
+        <div class="flex justify-between items-start mb-2">
+            <span class="text-lg font-semibold text-purple-400">
+                ${{ "{:,.0f}".format(trade.size) }} volume
+            </span>
+            <span class="text-xs text-gray-500">
+                {{ trade.timestamp|timestamp_to_relative }}
+            </span>
+        </div>
+        <div class="text-sm text-gray-300 mb-2">{{ trade.market_question|truncate(80) }}</div>
+        <div class="flex justify-between items-center text-xs text-gray-500">
+            <span class="font-mono">{{ trade.wallet_short }}</span>
+            <span>@ ${{ "%.2f"|format(trade.price) }}</span>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="p-6 text-center text-gray-400">
+    No whale trades yet. Waiting for trades over ${{ "{:,}".format(threshold) }}...
+</div>
+{% endif %}
