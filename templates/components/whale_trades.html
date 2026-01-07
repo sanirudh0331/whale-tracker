@@ -1,121 +1,75 @@
 {% if trades %}
-<div class="divide-y divide-white/[0.04]">
+<div class="divide-y divide-gray-700">
     {% for trade in trades %}
-    <div class="px-5 py-4 hover:bg-white/[0.02] transition-colors fade-in">
+    <div class="p-4 hover:bg-gray-750 fade-in">
         {% if platform == 'kalshi' %}
         <!-- Kalshi trade format -->
-        <div class="flex items-start justify-between gap-4">
-            <div class="flex-1 min-w-0">
-                <!-- Trade Direction & Amount -->
-                <div class="flex items-center gap-2.5 mb-2">
-                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium
-                                 {% if trade.taker_side == 'yes' %}
-                                 bg-emerald-500/10 text-emerald-400
-                                 {% else %}
-                                 bg-rose-500/10 text-rose-400
-                                 {% endif %}">
-                        {{ trade.taker_side|upper }}
-                    </span>
-                    <span class="text-[15px] font-medium text-white">
-                        ${{ "{:,.0f}".format(trade.usd_value) }}
-                    </span>
-                    {% if trade.insider_score is defined and trade.insider_score > 0 %}
-                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium
-                                 {% if trade.insider_score >= 70 %}bg-rose-500/10 text-rose-400
-                                 {% elif trade.insider_score >= 50 %}bg-amber-500/10 text-amber-400
-                                 {% elif trade.insider_score >= 30 %}bg-yellow-500/10 text-yellow-400
-                                 {% else %}bg-neutral-500/10 text-neutral-500{% endif %}"
-                          title="Insider probability">
-                        {{ "%.0f"|format(trade.insider_score) }}%
-                    </span>
-                    {% endif %}
-                </div>
-
-                <!-- Market Title -->
-                <a href="https://kalshi.com/markets/{{ trade.ticker.split('-')[0]|lower }}"
-                   target="_blank"
-                   class="block text-[13px] text-neutral-400 hover:text-white transition-colors truncate">
-                    {{ trade.market_title }}
-                </a>
-            </div>
-
-            <!-- Metadata -->
-            <div class="text-right flex-shrink-0">
-                <div class="text-[11px] text-neutral-600">
-                    {{ trade.timestamp|timestamp_to_relative }}
-                </div>
-                <div class="text-[11px] text-neutral-600 mt-1">
-                    {{ "{:,}".format(trade.count) }} @ {{ trade.price }}c
-                </div>
-            </div>
-        </div>
-        {% else %}
-        <!-- Polymarket market volume format -->
-        <div class="flex items-start justify-between gap-4">
-            <div class="flex-1 min-w-0">
-                <!-- Trade Direction & Amount -->
-                <div class="flex items-center gap-2.5 mb-2">
-                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium
-                                 {% if 'YES' in trade.side and '@' in trade.side %}
-                                 bg-emerald-500/10 text-emerald-400
-                                 {% elif 'NO' in trade.side and '@' in trade.side %}
-                                 bg-rose-500/10 text-rose-400
-                                 {% else %}
-                                 bg-violet-500/10 text-violet-400
-                                 {% endif %}">
-                        {{ trade.side.split('@')[0] if '@' in trade.side else trade.side }}
-                    </span>
-                    <span class="text-[15px] font-medium text-white">
-                        ${{ "{:,.0f}".format(trade.size) }}
-                    </span>
-                    {% if trade.insider_score is defined and trade.insider_score > 0 %}
-                    <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium
-                                 {% if trade.insider_score >= 70 %}bg-rose-500/10 text-rose-400
-                                 {% elif trade.insider_score >= 50 %}bg-amber-500/10 text-amber-400
-                                 {% elif trade.insider_score >= 30 %}bg-yellow-500/10 text-yellow-400
-                                 {% else %}bg-neutral-500/10 text-neutral-500{% endif %}"
-                          title="Insider probability">
-                        {{ "%.0f"|format(trade.insider_score) }}%
-                    </span>
-                    {% endif %}
-                </div>
-
-                <!-- Market Question -->
-                {% if trade.slug %}
-                <a href="https://polymarket.com/market/{{ trade.slug }}"
-                   target="_blank"
-                   class="block text-[13px] text-neutral-400 hover:text-white transition-colors truncate">
-                    {{ trade.market_question }}
-                </a>
-                {% else %}
-                <span class="block text-[13px] text-neutral-400 truncate">
-                    {{ trade.market_question }}
+        <div class="flex justify-between items-start mb-2">
+            <div class="flex items-center gap-3">
+                <span class="text-lg font-semibold {% if trade.taker_side == 'yes' %}text-green-400{% else %}text-red-400{% endif %}">
+                    {{ trade.taker_side|upper }} ${{ "{:,.0f}".format(trade.usd_value) }}
+                </span>
+                <!-- Insider Score Badge -->
+                {% if trade.insider_score is defined and trade.insider_score > 0 %}
+                <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ trade.insider_color }} bg-gray-700"
+                      title="Insider probability based on size, timing, odds, and market type">
+                    {{ "%.0f"|format(trade.insider_score) }}% {{ trade.insider_label }}
                 </span>
                 {% endif %}
             </div>
-
-            <!-- Metadata -->
-            <div class="text-right flex-shrink-0">
-                <div class="text-[11px] text-neutral-600">
-                    {{ trade.timestamp|timestamp_to_relative }}
-                </div>
-                <div class="text-[11px] text-neutral-600 mt-1">
-                    {{ "%.0f"|format(trade.price * 100) }}c
-                </div>
+            <span class="text-xs text-gray-500">
+                {{ trade.timestamp|timestamp_to_relative }}
+            </span>
+        </div>
+        <div class="text-sm text-gray-300 mb-2">
+            <a href="https://kalshi.com/markets/{{ trade.ticker.split('-')[0]|lower }}" target="_blank" class="hover:text-blue-400 hover:underline">
+                {{ trade.market_title|truncate(80) }}
+            </a>
+        </div>
+        <div class="flex justify-between items-center text-xs text-gray-500">
+            <span>{{ "{:,}".format(trade.count) }} contracts @ {{ trade.price }}¢</span>
+        </div>
+        {% else %}
+        <!-- Polymarket market volume format -->
+        <div class="flex justify-between items-start mb-2">
+            <div class="flex items-center gap-3">
+                <span class="text-lg font-semibold {% if 'YES' in trade.side and '@' in trade.side %}text-green-400{% elif 'NO' in trade.side and '@' in trade.side %}text-red-400{% else %}text-purple-400{% endif %}">
+                    {{ trade.side }} ${{ "{:,.0f}".format(trade.size) }}
+                </span>
+                <!-- Insider Score Badge -->
+                {% if trade.insider_score is defined and trade.insider_score > 0 %}
+                <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ trade.insider_color }} bg-gray-700"
+                      title="Insider probability based on size, timing, odds, and market type">
+                    {{ "%.0f"|format(trade.insider_score) }}% {{ trade.insider_label }}
+                </span>
+                {% endif %}
             </div>
+            <span class="text-xs text-gray-500">
+                {{ trade.timestamp|timestamp_to_relative }}
+            </span>
+        </div>
+        <div class="text-sm text-gray-300 mb-2">
+            {% if trade.slug %}
+            <a href="https://polymarket.com/market/{{ trade.slug }}" target="_blank" class="hover:text-purple-400 hover:underline">
+                {{ trade.market_question|truncate(80) }}
+            </a>
+            {% else %}
+            {{ trade.market_question|truncate(80) }}
+            {% endif %}
+        </div>
+        <div class="flex justify-between items-center text-xs text-gray-500">
+            <span>Price: {{ "%.0f"|format(trade.price * 100) }}¢</span>
         </div>
         {% endif %}
     </div>
     {% endfor %}
 </div>
 {% else %}
-<div class="p-12 text-center">
-    <div class="text-neutral-600 text-[13px]">
-        {% if insider_only %}
-        No high-activity markets detected
-        {% else %}
-        No trades over ${{ "{:,}".format(threshold) }} yet
-        {% endif %}
-    </div>
+<div class="p-6 text-center text-gray-400">
+    {% if insider_only %}
+    No high activity markets yet...
+    {% else %}
+    No data yet. Waiting for markets over ${{ "{:,}".format(threshold) }} volume...
+    {% endif %}
 </div>
 {% endif %}
