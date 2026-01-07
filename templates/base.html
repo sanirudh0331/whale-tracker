@@ -39,7 +39,7 @@
                 <div class="flex items-center gap-2">
                     <span class="text-sm text-gray-400">Min:</span>
                     <select id="threshold-select"
-                            onchange="updateThreshold(this.value)"
+                            onchange="updateParam('threshold', this.value)"
                             class="bg-gray-700 text-gray-200 text-sm rounded px-2 py-1 border border-gray-600 focus:outline-none focus:border-blue-500">
                         {% if platform == 'kalshi' %}
                         <option value="100" {% if threshold == 100 %}selected{% endif %}>$100</option>
@@ -58,13 +58,25 @@
                         {% endif %}
                     </select>
                 </div>
+                <!-- Time Filter -->
+                <div class="flex items-center gap-2">
+                    <span class="text-sm text-gray-400">Time:</span>
+                    <select id="hours-select"
+                            onchange="updateParam('hours', this.value)"
+                            class="bg-gray-700 text-gray-200 text-sm rounded px-2 py-1 border border-gray-600 focus:outline-none focus:border-blue-500">
+                        <option value="1" {% if hours == 1 %}selected{% endif %}>1h</option>
+                        <option value="6" {% if hours == 6 %}selected{% endif %}>6h</option>
+                        <option value="24" {% if hours == 24 %}selected{% endif %}>24h</option>
+                        <option value="168" {% if hours == 168 %}selected{% endif %}>7d</option>
+                    </select>
+                </div>
                 <span class="text-sm text-gray-500">|</span>
-                <span class="text-sm text-gray-400">Auto-refresh: {{ refresh_seconds // 60 }}min</span>
+                <span class="text-sm text-gray-400">Auto-refresh</span>
             </div>
             <script>
-                function updateThreshold(value) {
+                function updateParam(param, value) {
                     const url = new URL(window.location);
-                    url.searchParams.set('threshold', value);
+                    url.searchParams.set(param, value);
                     window.location = url.toString();
                 }
             </script>

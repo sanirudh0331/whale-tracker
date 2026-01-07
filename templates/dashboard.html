@@ -23,7 +23,7 @@
                 </span>
             </div>
             <div id="whale-trades"
-                 hx-get="/partials/whale-trades?platform={{ platform }}&threshold={{ threshold }}{% if insider_only %}&insider=1{% endif %}"
+                 hx-get="/partials/whale-trades?platform={{ platform }}&threshold={{ threshold }}&hours={{ hours }}{% if insider_only %}&insider=1{% endif %}"
                  hx-trigger="load, every {{ refresh_seconds }}s"
                  hx-swap="innerHTML">
                 <div class="p-6 text-center text-gray-400">Loading...</div>
