@@ -55,8 +55,8 @@
             {% endif %}
         </div>
         <div class="flex justify-between items-center text-xs text-gray-500">
-            <span class="text-purple-400">24h Volume</span>
-            <span>Current: ${{ "%.2f"|format(trade.price) }}</span>
+            <span class="text-purple-400">Market Volume</span>
+            <span>Price: {{ "%.0f"|format(trade.price * 100) }}¢</span>
         </div>
         {% endif %}
     </div>
@@ -65,9 +65,9 @@
 {% else %}
 <div class="p-6 text-center text-gray-400">
     {% if insider_only %}
-    No trades with insider score >50% yet...
+    No high activity markets yet...
     {% else %}
-    No whale trades yet. Waiting for trades over ${{ "{:,}".format(threshold) }}...
+    No data yet. Waiting for markets over ${{ "{:,}".format(threshold) }} volume...
     {% endif %}
 </div>
 {% endif %}

@@ -8,7 +8,11 @@
             <div class="px-6 py-4 border-b border-gray-700 flex justify-between items-center">
                 <div class="flex items-center gap-4">
                     <h2 class="text-xl font-semibold {% if platform == 'kalshi' %}text-blue-400{% else %}text-purple-400{% endif %}">
-                        {% if insider_only %}Potential Insider Trades{% else %}Recent Whale Trades{% endif %}
+                        {% if platform == 'kalshi' %}
+                            {% if insider_only %}Potential Insider Trades{% else %}Recent Whale Trades{% endif %}
+                        {% else %}
+                            {% if insider_only %}High Activity Markets{% else %}High Volume Markets{% endif %}
+                        {% endif %}
                     </h2>
                     <!-- Insider Filter Toggle -->
                     <a href="/?platform={{ platform }}&sort={{ sort }}{% if not insider_only %}&insider=1{% endif %}"

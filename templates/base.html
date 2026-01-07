@@ -91,7 +91,11 @@
 
     <footer class="text-center text-gray-500 text-sm py-8">
         Data updates every 5 minutes |
-        Showing {% if platform == 'kalshi' %}Kalshi{% else %}Polymarket{% endif %} trades over ${{ "{:,}".format(threshold) }}
+        {% if platform == 'kalshi' %}
+        Showing Kalshi trades over ${{ "{:,}".format(threshold) }}
+        {% else %}
+        Showing Polymarket markets with over ${{ "{:,}".format(threshold) }} volume
+        {% endif %}
     </footer>
 </body>
 </html>
