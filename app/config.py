@@ -5,7 +5,7 @@ KALSHI_THRESHOLD = int(os.getenv("KALSHI_THRESHOLD", "500"))
 KALSHI_API_BASE = "https://api.elections.kalshi.com/trade-api/v2"
 
 # Polymarket settings
-POLYMARKET_THRESHOLD = int(os.getenv("POLYMARKET_THRESHOLD", "25000"))
+POLYMARKET_THRESHOLD = int(os.getenv("POLYMARKET_THRESHOLD", "1000"))
 POLYMARKET_GAMMA_API = "https://gamma-api.polymarket.com"
 
 # Common settings
