@@ -6,6 +6,9 @@ from app.config import POLYMARKET_GAMMA_API, POLYMARKET_THRESHOLD, VOLUME_SPIKE_
 from app.insider import calculate_insider_score, get_insider_label, get_insider_color
 
 
+POLYMARKET_CLOB_API = "https://clob.polymarket.com"
+
+
 class PolymarketClient:
     def __init__(self):
         self.client = httpx.AsyncClient(
@@ -13,9 +16,16 @@ class PolymarketClient:
             timeout=30.0,
             headers={"Accept": "application/json"}
         )
+        self.clob_client = httpx.AsyncClient(
+            base_url=POLYMARKET_CLOB_API,
+            timeout=30.0,
+            headers={"Accept": "application/json"}
+        )
+        self.market_cache = {}
 
     async def close(self):
         await self.client.aclose()
+        await self.clob_client.aclose()
 
     async def get_markets(self, limit: int = 100, offset: int = 0) -> list[dict]:
         try:
@@ -62,15 +72,43 @@ class PolymarketClient:
         except Exception:
             return None
 
+    async def get_trades(self, limit: int = 500) -> list[dict]:
+        """Fetch recent trades from CLOB API."""
+        try:
+            resp = await self.clob_client.get("/trades", params={"limit": limit})
+            resp.raise_for_status()
+            data = resp.json()
+            return data if isinstance(data, list) else data.get("trades", data.get("data", []))
+        except Exception as e:
+            print(f"Polymarket CLOB trades error: {e}")
+            return []
+
+    async def get_market_info(self, token_id: str) -> Optional[dict]:
+        """Get market info from token ID, with caching."""
+        if token_id in self.market_cache:
+            return self.market_cache[token_id]
+        try:
+            # Try to find market by token
+            resp = await self.client.get("/markets", params={"clob_token_ids": token_id})
+            resp.raise_for_status()
+            markets = resp.json()
+            if markets and len(markets) > 0:
+                market = markets[0]
+                self.market_cache[token_id] = market
+                return market
+        except Exception:
+            pass
+        return None
+
 
 async def fetch_polymarket_data() -> dict:
-    """Fetch and process Polymarket market activity."""
+    """Fetch and process Polymarket high-volume markets."""
     client = PolymarketClient()
     whale_alerts = []
     volume_alerts = []
 
     try:
-        # Get high-volume market activity
+        # Get high-volume markets with price data
         markets = await client.get_top_volume_markets(limit=50)
         print(f"Polymarket: fetched {len(markets)} active markets")
 
@@ -79,7 +117,7 @@ async def fetch_polymarket_data() -> dict:
 
             for market in markets:
                 try:
-                    market_id = market.get("condition_id", market.get("id", ""))
+                    market_id = market.get("conditionId", market.get("condition_id", market.get("id", "")))
                     if not market_id:
                         continue
 
@@ -87,19 +125,34 @@ async def fetch_polymarket_data() -> dict:
                     slug = market.get("slug", "")
                     volume_24h = float(market.get("volume24hr", 0) or 0)
 
-                    # Parse price safely
-                    price = 0.5
-                    try:
-                        price_str = market.get("outcomePrices", "0.5")
-                        if isinstance(price_str, str):
-                            price_str = price_str.strip("[]\"'").split(",")[0].strip("\"' ")
-                        price = float(price_str) if price_str else 0.5
-                    except (ValueError, TypeError):
-                        price = 0.5
+                    # Parse outcome prices (Yes/No)
+                    outcomes = market.get("outcomes", ["Yes", "No"])
+                    outcome_prices = market.get("outcomePrices", ["0.5", "0.5"])
 
-                    # Create derived trade for high-volume markets
+                    # Parse prices
+                    try:
+                        if isinstance(outcome_prices, str):
+                            outcome_prices = outcome_prices.strip("[]").replace('"', '').split(",")
+                        yes_price = float(outcome_prices[0]) if outcome_prices else 0.5
+                        no_price = float(outcome_prices[1]) if len(outcome_prices) > 1 else 1 - yes_price
+                    except:
+                        yes_price, no_price = 0.5, 0.5
+
+                    # Determine dominant side based on price movement
+                    last_price = float(market.get("lastTradePrice", 0.5) or 0.5)
+                    price_change = float(market.get("oneDayPriceChange", 0) or 0)
+
+                    # If price went up, more people buying YES; if down, more buying NO
+                    if price_change > 0.02:
+                        side = f"YES @ {yes_price*100:.0f}%"
+                    elif price_change < -0.02:
+                        side = f"NO @ {no_price*100:.0f}%"
+                    else:
+                        side = f"YES {yes_price*100:.0f}% / NO {no_price*100:.0f}%"
+
+                    # Create trade record for high-volume markets
                     if volume_24h >= POLYMARKET_THRESHOLD:
-                        trade_id = f"vol-{market_id}-{int(time.time())//3600}"  # Hourly granularity
+                        trade_id = f"mkt-{market_id}-{int(time.time())//3600}"
 
                         existing = await db.execute(
                             "SELECT id FROM polymarket_trades WHERE id = ?", (trade_id,)
@@ -110,7 +163,7 @@ async def fetch_polymarket_data() -> dict:
                                 platform="polymarket",
                                 usd_value=volume_24h,
                                 threshold=POLYMARKET_THRESHOLD,
-                                price=price,
+                                price=yes_price,
                                 side="activity",
                                 market_title=question,
                                 market_id=market_id,
@@ -123,11 +176,11 @@ async def fetch_polymarket_data() -> dict:
                                 """INSERT OR IGNORE INTO polymarket_trades
                                    (id, market_id, market_question, wallet, side, size, price, timestamp, is_whale, insider_score)
                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                                (trade_id, market_id, question, "high_volume", "activity",
-                                 volume_24h, price, int(time.time()), 1, insider_score)
+                                (trade_id, market_id, question, "market", side,
+                                 volume_24h, yes_price, int(time.time()), 1, insider_score)
                             )
 
-                            message = f"${volume_24h:,.0f} 24h volume: {question[:50]}"
+                            message = f"${volume_24h:,.0f} vol - {side}: {question[:35]}"
                             await db.execute(
                                 """INSERT INTO alerts (platform, alert_type, identifier, title, message, trade_size, timestamp)
                                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
@@ -136,10 +189,11 @@ async def fetch_polymarket_data() -> dict:
                             whale_alerts.append({
                                 "market_id": market_id,
                                 "question": question,
+                                "side": side,
                                 "volume_24h": volume_24h
                             })
 
-                    # Check for volume spike
+                    # Update market data
                     existing = await db.execute(
                         "SELECT volume_avg FROM polymarket_markets WHERE id = ?", (market_id,)
                     )
@@ -149,12 +203,6 @@ async def fetch_polymarket_data() -> dict:
                         avg = row["volume_avg"]
                         if volume_24h > avg * VOLUME_SPIKE_MULTIPLIER:
                             ratio = volume_24h / avg
-                            message = f"{ratio:.1f}x volume spike: {question[:50]}"
-                            await db.execute(
-                                """INSERT INTO alerts (platform, alert_type, identifier, title, message, trade_size, timestamp)
-                                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                                ("polymarket", "volume_spike", market_id, question, message, volume_24h, int(time.time()))
-                            )
                             volume_alerts.append({"market_id": market_id, "ratio": ratio})
 
                     new_avg = (volume_24h + (row["volume_avg"] if row else 0)) / 2 if row else volume_24h

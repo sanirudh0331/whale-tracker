@@ -30,8 +30,8 @@
         <!-- Polymarket trade format -->
         <div class="flex justify-between items-start mb-2">
             <div class="flex items-center gap-3">
-                <span class="text-lg font-semibold text-purple-400">
-                    ${{ "{:,.0f}".format(trade.size) }} volume
+                <span class="text-lg font-semibold {% if 'BUY' in trade.side %}text-green-400{% elif 'SELL' in trade.side %}text-red-400{% else %}text-purple-400{% endif %}">
+                    {{ trade.side }} ${{ "{:,.0f}".format(trade.size) }}
                 </span>
                 <!-- Insider Score Badge -->
                 {% if trade.insider_score is defined and trade.insider_score > 0 %}
