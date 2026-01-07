@@ -11,11 +11,19 @@
                         {% if insider_only %}Potential Insider Trades{% else %}Recent Whale Trades{% endif %}
                     </h2>
                     <!-- Insider Filter Toggle -->
-                    <a href="/?platform={{ platform }}{% if not insider_only %}&insider=1{% endif %}"
+                    <a href="/?platform={{ platform }}&sort={{ sort }}{% if not insider_only %}&insider=1{% endif %}"
                        class="px-3 py-1 rounded-full text-xs font-medium transition-colors
                               {% if insider_only %}bg-red-600 text-white{% else %}bg-gray-700 text-gray-300 hover:bg-red-600 hover:text-white{% endif %}">
                         {% if insider_only %}Show All{% else %}Insider Only (>50%){% endif %}
                     </a>
+                    <!-- Sort Dropdown -->
+                    <select onchange="updateParam('sort', this.value)"
+                            class="bg-gray-700 text-gray-200 text-xs rounded px-2 py-1 border border-gray-600 focus:outline-none focus:border-blue-500">
+                        <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Newest</option>
+                        <option value="oldest" {% if sort == 'oldest' %}selected{% endif %}>Oldest</option>
+                        <option value="size_desc" {% if sort == 'size_desc' %}selected{% endif %}>Size: High→Low</option>
+                        <option value="size_asc" {% if sort == 'size_asc' %}selected{% endif %}>Size: Low→High</option>
+                    </select>
                 </div>
                 <span class="flex items-center gap-2 text-sm text-gray-400">
                     <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
@@ -23,7 +31,7 @@
                 </span>
             </div>
             <div id="whale-trades"
-                 hx-get="/partials/whale-trades?platform={{ platform }}&threshold={{ threshold }}&hours={{ hours }}{% if insider_only %}&insider=1{% endif %}"
+                 hx-get="/partials/whale-trades?platform={{ platform }}&threshold={{ threshold }}&hours={{ hours }}&sort={{ sort }}{% if insider_only %}&insider=1{% endif %}"
                  hx-trigger="load, every {{ refresh_seconds }}s"
                  hx-swap="innerHTML">
                 <div class="p-6 text-center text-gray-400">Loading...</div>

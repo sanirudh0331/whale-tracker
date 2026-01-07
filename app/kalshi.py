@@ -261,26 +261,35 @@ async def fetch_kalshi_data() -> dict:
     return {"whale_alerts": len(whale_alerts), "volume_alerts": len(volume_alerts)}
 
 
-async def get_kalshi_whale_trades(limit: int = 30, insider_only: bool = False, min_threshold: int = 0, hours: int = 24) -> list[dict]:
+async def get_kalshi_whale_trades(limit: int = 30, insider_only: bool = False, min_threshold: int = 0, hours: int = 24, sort: str = "newest") -> list[dict]:
     if min_threshold <= 0:
         min_threshold = KALSHI_THRESHOLD
 
     min_timestamp = int(time.time()) - (hours * 3600)
 
+    # Build ORDER BY clause based on sort parameter
+    sort_clauses = {
+        "newest": "timestamp DESC",
+        "oldest": "timestamp ASC",
+        "size_desc": "usd_value DESC",
+        "size_asc": "usd_value ASC"
+    }
+    order_by = sort_clauses.get(sort, "timestamp DESC")
+
     async with aiosqlite.connect(DATABASE_PATH) as db:
         db.row_factory = aiosqlite.Row
         if insider_only:
             result = await db.execute(
-                """SELECT * FROM kalshi_trades
+                f"""SELECT * FROM kalshi_trades
                    WHERE usd_value >= ? AND insider_score >= 50 AND timestamp >= ?
-                   ORDER BY insider_score DESC, timestamp DESC LIMIT ?""",
+                   ORDER BY {order_by} LIMIT ?""",
                 (min_threshold, min_timestamp, limit)
             )
         else:
             result = await db.execute(
-                """SELECT * FROM kalshi_trades
+                f"""SELECT * FROM kalshi_trades
                    WHERE usd_value >= ? AND timestamp >= ?
-                   ORDER BY timestamp DESC LIMIT ?""",
+                   ORDER BY {order_by} LIMIT ?""",
                 (min_threshold, min_timestamp, limit)
             )
         trades = []

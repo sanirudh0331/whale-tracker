@@ -58,13 +58,16 @@ templates.env.filters["format_number"] = format_number
 
 
 @app.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request, platform: str = "kalshi", insider: str = "", threshold: int = 0, hours: int = 24):
+async def dashboard(request: Request, platform: str = "kalshi", insider: str = "", threshold: int = 0, hours: int = 24, sort: str = "newest"):
     # Use custom threshold or default
     if threshold <= 0:
         threshold = KALSHI_THRESHOLD if platform == "kalshi" else POLYMARKET_THRESHOLD
     # Clamp hours to valid range
-    if hours not in [1, 6, 24, 168]:
+    if hours not in [1, 6, 24, 48, 72, 168]:
         hours = 24
+    # Validate sort option
+    if sort not in ["newest", "oldest", "size_desc", "size_asc"]:
+        sort = "newest"
 
     return templates.TemplateResponse(
         "dashboard.html",
@@ -74,6 +77,7 @@ async def dashboard(request: Request, platform: str = "kalshi", insider: str = "
             "insider_only": insider == "1",
             "threshold": threshold,
             "hours": hours,
+            "sort": sort,
             "kalshi_threshold": KALSHI_THRESHOLD,
             "polymarket_threshold": POLYMARKET_THRESHOLD,
             "refresh_seconds": DASHBOARD_REFRESH_SECONDS
@@ -82,18 +86,20 @@ async def dashboard(request: Request, platform: str = "kalshi", insider: str = "
 
 
 @app.get("/partials/whale-trades", response_class=HTMLResponse)
-async def whale_trades_partial(request: Request, platform: str = "kalshi", insider: str = "", threshold: int = 0, hours: int = 24):
+async def whale_trades_partial(request: Request, platform: str = "kalshi", insider: str = "", threshold: int = 0, hours: int = 24, sort: str = "newest"):
     insider_only = insider == "1"
     default_threshold = KALSHI_THRESHOLD if platform == "kalshi" else POLYMARKET_THRESHOLD
     if threshold <= 0:
         threshold = default_threshold
-    if hours not in [1, 6, 24, 168]:
+    if hours not in [1, 6, 24, 48, 72, 168]:
         hours = 24
+    if sort not in ["newest", "oldest", "size_desc", "size_asc"]:
+        sort = "newest"
 
     if platform == "kalshi":
-        trades = await get_kalshi_whale_trades(limit=50, insider_only=insider_only, min_threshold=threshold, hours=hours)
+        trades = await get_kalshi_whale_trades(limit=50, insider_only=insider_only, min_threshold=threshold, hours=hours, sort=sort)
     else:
-        trades = await get_polymarket_whale_trades(limit=50, insider_only=insider_only, min_threshold=threshold, hours=hours)
+        trades = await get_polymarket_whale_trades(limit=50, insider_only=insider_only, min_threshold=threshold, hours=hours, sort=sort)
 
     return templates.TemplateResponse(
         "components/whale_trades.html",
