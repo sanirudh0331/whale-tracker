@@ -22,13 +22,12 @@
             </span>
         </div>
         <div class="text-sm text-gray-300 mb-2">
-            <a href="https://kalshi.com/markets/{{ trade.ticker }}" target="_blank" class="hover:text-blue-400 hover:underline">
+            <a href="https://kalshi.com/markets/{{ trade.ticker.split('-')[0]|lower }}" target="_blank" class="hover:text-blue-400 hover:underline">
                 {{ trade.market_title|truncate(80) }}
             </a>
         </div>
         <div class="flex justify-between items-center text-xs text-gray-500">
-            <span class="font-mono bg-gray-700 px-2 py-0.5 rounded">{{ trade.ticker }}</span>
-            <span>{{ "{:,}".format(trade.count) }} contracts @ {{ trade.price }}c</span>
+            <span>{{ "{:,}".format(trade.count) }} contracts @ {{ trade.price }}¢</span>
         </div>
         {% else %}
         <!-- Polymarket market volume format -->
