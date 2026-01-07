@@ -47,7 +47,7 @@
         </div>
         <div class="text-sm text-gray-300 mb-2">
             {% if trade.slug %}
-            <a href="https://polymarket.com/event/{{ trade.slug }}" target="_blank" class="hover:text-purple-400 hover:underline">
+            <a href="https://polymarket.com/market/{{ trade.slug }}" target="_blank" class="hover:text-purple-400 hover:underline">
                 {{ trade.market_question|truncate(80) }}
             </a>
             {% else %}
