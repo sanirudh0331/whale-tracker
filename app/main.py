@@ -58,13 +58,18 @@ templates.env.filters["format_number"] = format_number
 
 
 @app.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request, platform: str = "kalshi", insider: str = ""):
+async def dashboard(request: Request, platform: str = "kalshi", insider: str = "", threshold: int = 0):
+    # Use custom threshold or default
+    if threshold <= 0:
+        threshold = KALSHI_THRESHOLD if platform == "kalshi" else POLYMARKET_THRESHOLD
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
             "request": request,
             "platform": platform,
             "insider_only": insider == "1",
+            "threshold": threshold,
             "kalshi_threshold": KALSHI_THRESHOLD,
             "polymarket_threshold": POLYMARKET_THRESHOLD,
             "refresh_seconds": DASHBOARD_REFRESH_SECONDS
@@ -73,14 +78,16 @@ async def dashboard(request: Request, platform: str = "kalshi", insider: str = "
 
 
 @app.get("/partials/whale-trades", response_class=HTMLResponse)
-async def whale_trades_partial(request: Request, platform: str = "kalshi", insider: str = ""):
+async def whale_trades_partial(request: Request, platform: str = "kalshi", insider: str = "", threshold: int = 0):
     insider_only = insider == "1"
+    default_threshold = KALSHI_THRESHOLD if platform == "kalshi" else POLYMARKET_THRESHOLD
+    if threshold <= 0:
+        threshold = default_threshold
+
     if platform == "kalshi":
-        trades = await get_kalshi_whale_trades(limit=30, insider_only=insider_only)
-        threshold = KALSHI_THRESHOLD
+        trades = await get_kalshi_whale_trades(limit=30, insider_only=insider_only, min_threshold=threshold)
     else:
-        trades = await get_polymarket_whale_trades(limit=30, insider_only=insider_only)
-        threshold = POLYMARKET_THRESHOLD
+        trades = await get_polymarket_whale_trades(limit=30, insider_only=insider_only, min_threshold=threshold)
 
     return templates.TemplateResponse(
         "components/whale_trades.html",

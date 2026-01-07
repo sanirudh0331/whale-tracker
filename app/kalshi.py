@@ -261,19 +261,22 @@ async def fetch_kalshi_data() -> dict:
     return {"whale_alerts": len(whale_alerts), "volume_alerts": len(volume_alerts)}
 
 
-async def get_kalshi_whale_trades(limit: int = 30, insider_only: bool = False) -> list[dict]:
+async def get_kalshi_whale_trades(limit: int = 30, insider_only: bool = False, min_threshold: int = 0) -> list[dict]:
+    if min_threshold <= 0:
+        min_threshold = KALSHI_THRESHOLD
+
     async with aiosqlite.connect(DATABASE_PATH) as db:
         db.row_factory = aiosqlite.Row
         if insider_only:
             result = await db.execute(
-                """SELECT * FROM kalshi_trades WHERE is_whale = 1 AND insider_score >= 50
+                """SELECT * FROM kalshi_trades WHERE usd_value >= ? AND insider_score >= 50
                    ORDER BY insider_score DESC, timestamp DESC LIMIT ?""",
-                (limit,)
+                (min_threshold, limit)
             )
         else:
             result = await db.execute(
-                """SELECT * FROM kalshi_trades WHERE is_whale = 1 ORDER BY timestamp DESC LIMIT ?""",
-                (limit,)
+                """SELECT * FROM kalshi_trades WHERE usd_value >= ? ORDER BY timestamp DESC LIMIT ?""",
+                (min_threshold, limit)
             )
         trades = []
         for row in await result.fetchall():
