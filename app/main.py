@@ -58,12 +58,13 @@ templates.env.filters["format_number"] = format_number
 
 
 @app.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request, platform: str = "kalshi"):
+async def dashboard(request: Request, platform: str = "kalshi", insider: str = ""):
     return templates.TemplateResponse(
         "dashboard.html",
         {
             "request": request,
             "platform": platform,
+            "insider_only": insider == "1",
             "kalshi_threshold": KALSHI_THRESHOLD,
             "polymarket_threshold": POLYMARKET_THRESHOLD,
             "refresh_seconds": DASHBOARD_REFRESH_SECONDS
@@ -72,12 +73,13 @@ async def dashboard(request: Request, platform: str = "kalshi"):
 
 
 @app.get("/partials/whale-trades", response_class=HTMLResponse)
-async def whale_trades_partial(request: Request, platform: str = "kalshi"):
+async def whale_trades_partial(request: Request, platform: str = "kalshi", insider: str = ""):
+    insider_only = insider == "1"
     if platform == "kalshi":
-        trades = await get_kalshi_whale_trades(limit=30)
+        trades = await get_kalshi_whale_trades(limit=30, insider_only=insider_only)
         threshold = KALSHI_THRESHOLD
     else:
-        trades = await get_polymarket_whale_trades(limit=30)
+        trades = await get_polymarket_whale_trades(limit=30, insider_only=insider_only)
         threshold = POLYMARKET_THRESHOLD
 
     return templates.TemplateResponse(
@@ -86,7 +88,8 @@ async def whale_trades_partial(request: Request, platform: str = "kalshi"):
             "request": request,
             "trades": trades,
             "platform": platform,
-            "threshold": threshold
+            "threshold": threshold,
+            "insider_only": insider_only
         }
     )
 
@@ -147,12 +150,13 @@ async def stats_partial(request: Request, platform: str = "kalshi"):
 
 # API endpoints
 @app.get("/api/whale-trades")
-async def api_whale_trades(platform: str = "kalshi"):
+async def api_whale_trades(platform: str = "kalshi", insider: str = ""):
+    insider_only = insider == "1"
     if platform == "kalshi":
-        trades = await get_kalshi_whale_trades(limit=50)
+        trades = await get_kalshi_whale_trades(limit=50, insider_only=insider_only)
     else:
-        trades = await get_polymarket_whale_trades(limit=50)
-    return {"trades": trades, "platform": platform}
+        trades = await get_polymarket_whale_trades(limit=50, insider_only=insider_only)
+    return {"trades": trades, "platform": platform, "insider_only": insider_only}
 
 
 @app.get("/api/markets")

@@ -5,9 +5,18 @@
         {% if platform == 'kalshi' %}
         <!-- Kalshi trade format -->
         <div class="flex justify-between items-start mb-2">
-            <span class="text-lg font-semibold {% if trade.taker_side == 'yes' %}text-green-400{% else %}text-red-400{% endif %}">
-                {{ trade.taker_side|upper }} ${{ "{:,.0f}".format(trade.usd_value) }}
-            </span>
+            <div class="flex items-center gap-3">
+                <span class="text-lg font-semibold {% if trade.taker_side == 'yes' %}text-green-400{% else %}text-red-400{% endif %}">
+                    {{ trade.taker_side|upper }} ${{ "{:,.0f}".format(trade.usd_value) }}
+                </span>
+                <!-- Insider Score Badge -->
+                {% if trade.insider_score is defined and trade.insider_score > 0 %}
+                <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ trade.insider_color }} bg-gray-700"
+                      title="Insider probability based on size, timing, odds, and market type">
+                    {{ "%.0f"|format(trade.insider_score) }}% {{ trade.insider_label }}
+                </span>
+                {% endif %}
+            </div>
             <span class="text-xs text-gray-500">
                 {{ trade.timestamp|timestamp_to_relative }}
             </span>
@@ -20,9 +29,18 @@
         {% else %}
         <!-- Polymarket trade format -->
         <div class="flex justify-between items-start mb-2">
-            <span class="text-lg font-semibold text-purple-400">
-                ${{ "{:,.0f}".format(trade.size) }} volume
-            </span>
+            <div class="flex items-center gap-3">
+                <span class="text-lg font-semibold text-purple-400">
+                    ${{ "{:,.0f}".format(trade.size) }} volume
+                </span>
+                <!-- Insider Score Badge -->
+                {% if trade.insider_score is defined and trade.insider_score > 0 %}
+                <span class="px-2 py-0.5 rounded-full text-xs font-medium {{ trade.insider_color }} bg-gray-700"
+                      title="Insider probability based on size, timing, odds, and market type">
+                    {{ "%.0f"|format(trade.insider_score) }}% {{ trade.insider_label }}
+                </span>
+                {% endif %}
+            </div>
             <span class="text-xs text-gray-500">
                 {{ trade.timestamp|timestamp_to_relative }}
             </span>
@@ -38,6 +56,10 @@
 </div>
 {% else %}
 <div class="p-6 text-center text-gray-400">
+    {% if insider_only %}
+    No trades with insider score >50% yet...
+    {% else %}
     No whale trades yet. Waiting for trades over ${{ "{:,}".format(threshold) }}...
+    {% endif %}
 </div>
 {% endif %}

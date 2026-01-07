@@ -4,6 +4,7 @@ import aiosqlite
 from datetime import datetime
 from typing import Optional
 from app.config import KALSHI_API_BASE, KALSHI_THRESHOLD, VOLUME_SPIKE_MULTIPLIER, DATABASE_PATH
+from app.insider import calculate_insider_score, get_insider_label, get_insider_color
 
 
 class KalshiClient:
@@ -148,13 +149,36 @@ async def fetch_kalshi_data() -> dict:
 
                     is_whale = 1 if usd_value >= KALSHI_THRESHOLD else 0
 
+                    # Calculate insider score for whale trades
+                    insider_score = 0
+                    if is_whale:
+                        # Get market volume for liquidity score
+                        market_vol = await db.execute(
+                            "SELECT volume_24h FROM kalshi_markets WHERE ticker = ?", (ticker,)
+                        )
+                        vol_row = await market_vol.fetchone()
+                        volume_24h = vol_row["volume_24h"] if vol_row else 0
+
+                        score_data = await calculate_insider_score(
+                            platform="kalshi",
+                            usd_value=usd_value,
+                            threshold=KALSHI_THRESHOLD,
+                            price=trade.get("price", 50),
+                            side=trade.get("taker_side", "yes"),
+                            market_title=market_title,
+                            market_id=ticker,
+                            timestamp=trade.get("timestamp", 0),
+                            volume_24h=volume_24h
+                        )
+                        insider_score = score_data["insider_score"]
+
                     await db.execute(
                         """INSERT OR IGNORE INTO kalshi_trades
-                           (id, ticker, market_title, taker_side, count, price, usd_value, timestamp, is_whale)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                           (id, ticker, market_title, taker_side, count, price, usd_value, timestamp, is_whale, insider_score)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         (trade_id, ticker, market_title, trade.get("taker_side"),
                          trade.get("count", 0), trade.get("price", 0),
-                         usd_value, trade.get("timestamp", 0), is_whale)
+                         usd_value, trade.get("timestamp", 0), is_whale, insider_score)
                     )
 
                     if is_whale:
@@ -237,14 +261,27 @@ async def fetch_kalshi_data() -> dict:
     return {"whale_alerts": len(whale_alerts), "volume_alerts": len(volume_alerts)}
 
 
-async def get_kalshi_whale_trades(limit: int = 30) -> list[dict]:
+async def get_kalshi_whale_trades(limit: int = 30, insider_only: bool = False) -> list[dict]:
     async with aiosqlite.connect(DATABASE_PATH) as db:
         db.row_factory = aiosqlite.Row
-        result = await db.execute(
-            """SELECT * FROM kalshi_trades WHERE is_whale = 1 ORDER BY timestamp DESC LIMIT ?""",
-            (limit,)
-        )
-        return [dict(row) for row in await result.fetchall()]
+        if insider_only:
+            result = await db.execute(
+                """SELECT * FROM kalshi_trades WHERE is_whale = 1 AND insider_score >= 50
+                   ORDER BY insider_score DESC, timestamp DESC LIMIT ?""",
+                (limit,)
+            )
+        else:
+            result = await db.execute(
+                """SELECT * FROM kalshi_trades WHERE is_whale = 1 ORDER BY timestamp DESC LIMIT ?""",
+                (limit,)
+            )
+        trades = []
+        for row in await result.fetchall():
+            trade = dict(row)
+            trade["insider_label"] = get_insider_label(trade.get("insider_score", 0))
+            trade["insider_color"] = get_insider_color(trade.get("insider_score", 0))
+            trades.append(trade)
+        return trades
 
 
 async def get_kalshi_top_markets(limit: int = 15) -> list[dict]:

@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS kalshi_trades (
     price INTEGER NOT NULL,
     usd_value REAL NOT NULL,
     timestamp INTEGER NOT NULL,
-    is_whale INTEGER DEFAULT 0
+    is_whale INTEGER DEFAULT 0,
+    insider_score REAL DEFAULT 0
 );
 
 -- Kalshi markets
@@ -38,7 +39,8 @@ CREATE TABLE IF NOT EXISTS polymarket_trades (
     size REAL NOT NULL,
     price REAL NOT NULL,
     timestamp INTEGER NOT NULL,
-    is_whale INTEGER DEFAULT 0
+    is_whale INTEGER DEFAULT 0,
+    insider_score REAL DEFAULT 0
 );
 
 -- Polymarket wallets

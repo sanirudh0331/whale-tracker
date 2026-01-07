@@ -3,6 +3,7 @@ import httpx
 import aiosqlite
 from typing import Optional
 from app.config import POLYMARKET_GAMMA_API, POLYMARKET_THRESHOLD, VOLUME_SPIKE_MULTIPLIER, DATABASE_PATH
+from app.insider import calculate_insider_score, get_insider_label, get_insider_color
 
 
 class PolymarketClient:
@@ -104,12 +105,26 @@ async def fetch_polymarket_data() -> dict:
                             "SELECT id FROM polymarket_trades WHERE id = ?", (trade_id,)
                         )
                         if not await existing.fetchone():
+                            # Calculate insider score
+                            score_data = await calculate_insider_score(
+                                platform="polymarket",
+                                usd_value=volume_24h,
+                                threshold=POLYMARKET_THRESHOLD,
+                                price=price,
+                                side="activity",
+                                market_title=question,
+                                market_id=market_id,
+                                timestamp=int(time.time()),
+                                volume_24h=volume_24h
+                            )
+                            insider_score = score_data["insider_score"]
+
                             await db.execute(
                                 """INSERT OR IGNORE INTO polymarket_trades
-                                   (id, market_id, market_question, wallet, side, size, price, timestamp, is_whale)
-                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                   (id, market_id, market_question, wallet, side, size, price, timestamp, is_whale, insider_score)
+                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                                 (trade_id, market_id, question, "high_volume", "activity",
-                                 volume_24h, price, int(time.time()), 1)
+                                 volume_24h, price, int(time.time()), 1, insider_score)
                             )
 
                             message = f"${volume_24h:,.0f} 24h volume: {question[:50]}"
@@ -163,19 +178,28 @@ async def fetch_polymarket_data() -> dict:
     return {"whale_alerts": len(whale_alerts), "volume_alerts": len(volume_alerts)}
 
 
-async def get_polymarket_whale_trades(limit: int = 30) -> list[dict]:
+async def get_polymarket_whale_trades(limit: int = 30, insider_only: bool = False) -> list[dict]:
     async with aiosqlite.connect(DATABASE_PATH) as db:
         db.row_factory = aiosqlite.Row
-        result = await db.execute(
-            """SELECT * FROM polymarket_trades WHERE is_whale = 1 ORDER BY timestamp DESC LIMIT ?""",
-            (limit,)
-        )
+        if insider_only:
+            result = await db.execute(
+                """SELECT * FROM polymarket_trades WHERE is_whale = 1 AND insider_score >= 50
+                   ORDER BY insider_score DESC, timestamp DESC LIMIT ?""",
+                (limit,)
+            )
+        else:
+            result = await db.execute(
+                """SELECT * FROM polymarket_trades WHERE is_whale = 1 ORDER BY timestamp DESC LIMIT ?""",
+                (limit,)
+            )
         rows = await result.fetchall()
         trades = []
         for row in rows:
             trade = dict(row)
             wallet = trade.get("wallet", "")
             trade["wallet_short"] = f"{wallet[:6]}...{wallet[-4:]}" if len(wallet) > 10 else wallet
+            trade["insider_label"] = get_insider_label(trade.get("insider_score", 0))
+            trade["insider_color"] = get_insider_color(trade.get("insider_score", 0))
             trades.append(trade)
         return trades
 
