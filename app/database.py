@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS kalshi_trades (
     usd_value REAL NOT NULL,
     timestamp INTEGER NOT NULL,
     is_whale INTEGER DEFAULT 0,
-    insider_score REAL DEFAULT 0
+    insider_score REAL DEFAULT 0,
+    category TEXT
 );
 
 -- Kalshi markets
@@ -26,7 +27,10 @@ CREATE TABLE IF NOT EXISTS kalshi_markets (
     volume_24h INTEGER DEFAULT 0,
     volume_avg REAL DEFAULT 0,
     open_interest INTEGER DEFAULT 0,
-    last_updated INTEGER
+    last_updated INTEGER,
+    result TEXT,
+    settlement_time INTEGER,
+    category TEXT
 );
 
 -- Polymarket trades
@@ -92,4 +96,18 @@ async def get_db():
 async def init_db():
     async with aiosqlite.connect(DATABASE_PATH) as db:
         await db.executescript(SCHEMA)
+
+        # Migrations for existing databases
+        migrations = [
+            "ALTER TABLE kalshi_markets ADD COLUMN result TEXT",
+            "ALTER TABLE kalshi_markets ADD COLUMN settlement_time INTEGER",
+            "ALTER TABLE kalshi_markets ADD COLUMN category TEXT",
+            "ALTER TABLE kalshi_trades ADD COLUMN category TEXT",
+        ]
+        for migration in migrations:
+            try:
+                await db.execute(migration)
+            except Exception:
+                pass  # Column already exists
+
         await db.commit()

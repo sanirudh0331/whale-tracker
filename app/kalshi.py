@@ -205,13 +205,15 @@ async def fetch_kalshi_data() -> dict:
                         )
                         insider_score = score_data["insider_score"]
 
+                    category = detect_category(ticker, market_title)
+
                     await db.execute(
                         """INSERT OR IGNORE INTO kalshi_trades
-                           (id, ticker, market_title, taker_side, count, price, usd_value, timestamp, is_whale, insider_score)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                           (id, ticker, market_title, taker_side, count, price, usd_value, timestamp, is_whale, insider_score, category)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         (trade_id, ticker, market_title, trade.get("taker_side"),
                          trade.get("count", 0), trade.get("price", 0),
-                         usd_value, trade.get("timestamp", 0), is_whale, insider_score)
+                         usd_value, trade.get("timestamp", 0), is_whale, insider_score, category)
                     )
 
                     if is_whale:
@@ -283,12 +285,13 @@ async def fetch_kalshi_data() -> dict:
                             volume_alerts.append({"ticker": ticker, "ratio": ratio})
 
                     new_avg = (volume_24h + (row["volume_avg"] if row else 0)) / 2 if row else volume_24h
+                    category = detect_category(ticker, title)
 
                     await db.execute(
                         """INSERT OR REPLACE INTO kalshi_markets
-                           (ticker, title, status, yes_price, no_price, volume_24h, volume_avg, open_interest, last_updated)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                        (ticker, title, "open", yes_price, no_price, volume_24h, new_avg, open_interest, int(time.time()))
+                           (ticker, title, status, yes_price, no_price, volume_24h, volume_avg, open_interest, last_updated, category)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (ticker, title, "open", yes_price, no_price, volume_24h, new_avg, open_interest, int(time.time()), category)
                     )
 
                 except Exception as e:
@@ -343,13 +346,22 @@ async def get_kalshi_whale_trades(limit: int = 30, insider_only: bool = False, m
         return trades
 
 
-async def get_kalshi_top_markets(limit: int = 15) -> list[dict]:
+async def get_kalshi_top_markets(limit: int = 15, include_settled: bool = False) -> list[dict]:
+    """Get top markets by volume. By default only shows open markets in UI."""
     async with aiosqlite.connect(DATABASE_PATH) as db:
         db.row_factory = aiosqlite.Row
-        result = await db.execute(
-            """SELECT * FROM kalshi_markets ORDER BY volume_24h DESC LIMIT ?""",
-            (limit,)
-        )
+        if include_settled:
+            result = await db.execute(
+                """SELECT * FROM kalshi_markets ORDER BY volume_24h DESC LIMIT ?""",
+                (limit,)
+            )
+        else:
+            result = await db.execute(
+                """SELECT * FROM kalshi_markets
+                   WHERE status = 'open' OR result IS NULL
+                   ORDER BY volume_24h DESC LIMIT ?""",
+                (limit,)
+            )
         return [dict(row) for row in await result.fetchall()]
 
 
@@ -375,4 +387,141 @@ async def get_kalshi_stats() -> dict:
             "markets_tracked": markets,
             "whale_volume": volume,
             "threshold": KALSHI_THRESHOLD
+        }
+
+
+async def check_settled_markets() -> dict:
+    """
+    Check markets in DB for settlement and record outcomes.
+    This enables backtesting by capturing whale trade results.
+    """
+    client = KalshiClient()
+    updated = 0
+    checked = 0
+
+    try:
+        async with aiosqlite.connect(DATABASE_PATH) as db:
+            db.row_factory = aiosqlite.Row
+
+            # Get markets without results that have whale trades
+            result = await db.execute(
+                """SELECT DISTINCT m.ticker FROM kalshi_markets m
+                   JOIN kalshi_trades t ON m.ticker = t.ticker
+                   WHERE m.result IS NULL AND t.is_whale = 1
+                   LIMIT 100"""
+            )
+            tickers = [row["ticker"] for row in await result.fetchall()]
+
+            print(f"Checking {len(tickers)} markets for settlement...")
+
+            for ticker in tickers:
+                checked += 1
+                try:
+                    market = await client.get_market(ticker)
+                    if not market:
+                        continue
+
+                    status = market.get("status", "")
+                    result_value = market.get("result")  # 'yes' or 'no'
+
+                    if status in ("settled", "finalized") and result_value:
+                        # Get settlement time
+                        settlement_ts = market.get("settlement_ts", "")
+                        settlement_time = 0
+                        if settlement_ts:
+                            try:
+                                from datetime import datetime
+                                dt = datetime.fromisoformat(settlement_ts.replace("Z", "+00:00"))
+                                settlement_time = int(dt.timestamp())
+                            except Exception:
+                                settlement_time = int(time.time())
+
+                        await db.execute(
+                            """UPDATE kalshi_markets
+                               SET status = ?, result = ?, settlement_time = ?
+                               WHERE ticker = ?""",
+                            (status, result_value, settlement_time, ticker)
+                        )
+                        updated += 1
+                        print(f"  {ticker}: {result_value.upper()}")
+
+                except Exception as e:
+                    print(f"  Error checking {ticker}: {e}")
+                    continue
+
+            await db.commit()
+
+    finally:
+        await client.close()
+
+    print(f"Updated {updated}/{checked} markets with settlement data")
+    return {"checked": checked, "updated": updated}
+
+
+async def get_kalshi_whale_performance() -> dict:
+    """
+    Calculate whale trade performance on settled markets.
+    Returns win rate and edge for backtesting analysis.
+    """
+    async with aiosqlite.connect(DATABASE_PATH) as db:
+        db.row_factory = aiosqlite.Row
+
+        # Get whale trades with settlement data
+        result = await db.execute(
+            """SELECT t.*, m.result, m.category as market_category
+               FROM kalshi_trades t
+               JOIN kalshi_markets m ON t.ticker = m.ticker
+               WHERE t.is_whale = 1 AND m.result IS NOT NULL"""
+        )
+        trades = [dict(row) for row in await result.fetchall()]
+
+        if not trades:
+            return {"settled_trades": 0, "message": "No settled whale trades yet"}
+
+        wins = 0
+        losses = 0
+        total_expected = 0
+        total_pnl = 0
+        by_category = {}
+
+        for t in trades:
+            side = t["taker_side"]
+            result_val = t["result"]
+            price = t["price"]
+            usd = t["usd_value"]
+            category = t.get("category") or t.get("market_category") or "other"
+
+            won = (side == result_val)
+            expected_prob = price / 100
+            total_expected += expected_prob
+
+            contracts = usd / (price / 100) if price > 0 else 0
+            if won:
+                wins += 1
+                pnl = contracts * (100 - price) / 100
+            else:
+                losses += 1
+                pnl = -usd
+
+            total_pnl += pnl
+
+            if category not in by_category:
+                by_category[category] = {"wins": 0, "losses": 0, "pnl": 0}
+            by_category[category]["wins" if won else "losses"] += 1
+            by_category[category]["pnl"] += pnl
+
+        total = wins + losses
+        actual_wr = wins / total if total > 0 else 0
+        expected_wr = total_expected / total if total > 0 else 0
+        edge = actual_wr - expected_wr
+
+        return {
+            "settled_trades": total,
+            "wins": wins,
+            "losses": losses,
+            "actual_win_rate": round(actual_wr * 100, 1),
+            "expected_win_rate": round(expected_wr * 100, 1),
+            "edge": round(edge * 100, 1),
+            "total_pnl": round(total_pnl, 2),
+            "by_category": by_category
         }
