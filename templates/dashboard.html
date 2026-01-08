@@ -15,10 +15,16 @@
                         {% endif %}
                     </h2>
                     <!-- Insider Filter Toggle -->
-                    <a href="/?platform={{ platform }}&sort={{ sort }}{% if not insider_only %}&insider=1{% endif %}"
+                    <a href="/?platform={{ platform }}&sort={{ sort }}&hours={{ hours }}{% if hide_settled %}&hide_settled=1{% endif %}{% if not insider_only %}&insider=1{% endif %}"
                        class="px-3 py-1 rounded-full text-xs font-medium transition-colors
                               {% if insider_only %}bg-red-600 text-white{% else %}bg-gray-700 text-gray-300 hover:bg-red-600 hover:text-white{% endif %}">
                         {% if insider_only %}Show All{% else %}Insider Only (>50%){% endif %}
+                    </a>
+                    <!-- Hide Settled Toggle -->
+                    <a href="/?platform={{ platform }}&sort={{ sort }}&hours={{ hours }}{% if insider_only %}&insider=1{% endif %}{% if not hide_settled %}&hide_settled=1{% endif %}"
+                       class="px-3 py-1 rounded-full text-xs font-medium transition-colors
+                              {% if hide_settled %}bg-green-600 text-white{% else %}bg-gray-700 text-gray-300 hover:bg-green-600 hover:text-white{% endif %}">
+                        {% if hide_settled %}Show Settled{% else %}Hide Settled{% endif %}
                     </a>
                     <!-- Sort Dropdown -->
                     <select onchange="updateParam('sort', this.value)"
@@ -35,7 +41,7 @@
                 </span>
             </div>
             <div id="whale-trades"
-                 hx-get="/partials/whale-trades?platform={{ platform }}&threshold={{ threshold }}&hours={{ hours }}&sort={{ sort }}{% if insider_only %}&insider=1{% endif %}"
+                 hx-get="/partials/whale-trades?platform={{ platform }}&threshold={{ threshold }}&hours={{ hours }}&sort={{ sort }}{% if insider_only %}&insider=1{% endif %}{% if hide_settled %}&hide_settled=1{% endif %}"
                  hx-trigger="load, every {{ refresh_seconds }}s"
                  hx-swap="innerHTML">
                 <div class="p-6 text-center text-gray-400">Loading...</div>

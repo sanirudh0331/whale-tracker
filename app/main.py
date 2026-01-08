@@ -58,7 +58,7 @@ templates.env.filters["format_number"] = format_number
 
 
 @app.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request, platform: str = "kalshi", insider: str = "", threshold: int = 0, hours: int = 24, sort: str = "newest"):
+async def dashboard(request: Request, platform: str = "kalshi", insider: str = "", threshold: int = 0, hours: int = 24, sort: str = "newest", hide_settled: str = ""):
     # Use custom threshold or default
     if threshold <= 0:
         threshold = KALSHI_THRESHOLD if platform == "kalshi" else POLYMARKET_THRESHOLD
@@ -75,6 +75,7 @@ async def dashboard(request: Request, platform: str = "kalshi", insider: str = "
             "request": request,
             "platform": platform,
             "insider_only": insider == "1",
+            "hide_settled": hide_settled == "1",
             "threshold": threshold,
             "hours": hours,
             "sort": sort,
@@ -86,8 +87,9 @@ async def dashboard(request: Request, platform: str = "kalshi", insider: str = "
 
 
 @app.get("/partials/whale-trades", response_class=HTMLResponse)
-async def whale_trades_partial(request: Request, platform: str = "kalshi", insider: str = "", threshold: int = 0, hours: int = 24, sort: str = "newest"):
+async def whale_trades_partial(request: Request, platform: str = "kalshi", insider: str = "", threshold: int = 0, hours: int = 24, sort: str = "newest", hide_settled: str = ""):
     insider_only = insider == "1"
+    hide_settled_bool = hide_settled == "1"
     default_threshold = KALSHI_THRESHOLD if platform == "kalshi" else POLYMARKET_THRESHOLD
     if threshold <= 0:
         threshold = default_threshold
@@ -97,7 +99,7 @@ async def whale_trades_partial(request: Request, platform: str = "kalshi", insid
         sort = "newest"
 
     if platform == "kalshi":
-        trades = await get_kalshi_whale_trades(limit=50, insider_only=insider_only, min_threshold=threshold, hours=hours, sort=sort)
+        trades = await get_kalshi_whale_trades(limit=50, insider_only=insider_only, min_threshold=threshold, hours=hours, sort=sort, hide_settled=hide_settled_bool)
     else:
         trades = await get_polymarket_whale_trades(limit=50, insider_only=insider_only, min_threshold=threshold, hours=hours, sort=sort)
 
@@ -109,6 +111,7 @@ async def whale_trades_partial(request: Request, platform: str = "kalshi", insid
             "platform": platform,
             "threshold": threshold,
             "insider_only": insider_only,
+            "hide_settled": hide_settled_bool,
             "hours": hours
         }
     )

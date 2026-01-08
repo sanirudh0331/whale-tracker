@@ -306,7 +306,13 @@ async def fetch_kalshi_data() -> dict:
     return {"whale_alerts": len(whale_alerts), "volume_alerts": len(volume_alerts)}
 
 
-async def get_kalshi_whale_trades(limit: int = 30, insider_only: bool = False, min_threshold: int = 0, hours: int = 24, sort: str = "newest") -> list[dict]:
+async def get_kalshi_whale_trades(limit: int = 30, insider_only: bool = False, min_threshold: int = 0, hours: int = 24, sort: str = "newest", hide_settled: bool = False) -> list[dict]:
+    """
+    Get whale trades with optional filters.
+    - hours: Only trades from last X hours (e.g., 168 = 7 days)
+    - hide_settled: If True, hide trades on markets that have already settled
+    - insider_only: If True, only show trades with insider_score >= 50
+    """
     if min_threshold <= 0:
         min_threshold = KALSHI_THRESHOLD
 
@@ -314,34 +320,47 @@ async def get_kalshi_whale_trades(limit: int = 30, insider_only: bool = False, m
 
     # Build ORDER BY clause based on sort parameter
     sort_clauses = {
-        "newest": "timestamp DESC",
-        "oldest": "timestamp ASC",
-        "size_desc": "usd_value DESC",
-        "size_asc": "usd_value ASC"
+        "newest": "t.timestamp DESC",
+        "oldest": "t.timestamp ASC",
+        "size_desc": "t.usd_value DESC",
+        "size_asc": "t.usd_value ASC"
     }
-    order_by = sort_clauses.get(sort, "timestamp DESC")
+    order_by = sort_clauses.get(sort, "t.timestamp DESC")
 
     async with aiosqlite.connect(DATABASE_PATH) as db:
         db.row_factory = aiosqlite.Row
+
+        # Base query with JOIN to get market status
+        base_query = """
+            SELECT t.*, m.result, m.status as market_status
+            FROM kalshi_trades t
+            LEFT JOIN kalshi_markets m ON t.ticker = m.ticker
+            WHERE t.usd_value >= ? AND t.timestamp >= ?
+        """
+
+        conditions = []
+        params = [min_threshold, min_timestamp]
+
         if insider_only:
-            result = await db.execute(
-                f"""SELECT * FROM kalshi_trades
-                   WHERE usd_value >= ? AND insider_score >= 50 AND timestamp >= ?
-                   ORDER BY {order_by} LIMIT ?""",
-                (min_threshold, min_timestamp, limit)
-            )
-        else:
-            result = await db.execute(
-                f"""SELECT * FROM kalshi_trades
-                   WHERE usd_value >= ? AND timestamp >= ?
-                   ORDER BY {order_by} LIMIT ?""",
-                (min_threshold, min_timestamp, limit)
-            )
+            conditions.append("t.insider_score >= 50")
+
+        if hide_settled:
+            conditions.append("(m.result IS NULL OR m.status = 'open')")
+
+        if conditions:
+            base_query += " AND " + " AND ".join(conditions)
+
+        base_query += f" ORDER BY {order_by} LIMIT ?"
+        params.append(limit)
+
+        result = await db.execute(base_query, params)
+
         trades = []
         for row in await result.fetchall():
             trade = dict(row)
             trade["insider_label"] = get_insider_label(trade.get("insider_score", 0))
             trade["insider_color"] = get_insider_color(trade.get("insider_score", 0))
+            trade["is_settled"] = trade.get("result") is not None
             trades.append(trade)
         return trades
 
