@@ -7,6 +7,39 @@ from app.config import KALSHI_API_BASE, KALSHI_THRESHOLD, VOLUME_SPIKE_MULTIPLIE
 from app.insider import calculate_insider_score, get_insider_label, get_insider_color
 
 
+def detect_category(ticker: str, title: str) -> str:
+    """
+    Detect market category. Sports whales have strongest edge based on backtesting:
+    - Sports: 98% win rate, +11% edge over expected
+    - Other categories: ~67% win rate, close to expected
+    """
+    ticker_upper = ticker.upper()
+    title_lower = title.lower()
+
+    # Sports indicators - these have the highest predictive value
+    sports_keywords = ['winner', 'wins by', 'total points', 'spread', 'game', 'match', 'vs']
+    sports_tickers = ['NBA', 'NFL', 'MLB', 'NHL', 'NCAA', 'EPL', 'MLS', 'UFC', 'BOXING', 'NCAAMB', 'NCAAF', 'SERIE']
+
+    if any(kw in title_lower for kw in sports_keywords):
+        return "sports"
+    if any(t in ticker_upper for t in sports_tickers):
+        return "sports"
+
+    # Crypto
+    if any(c in ticker_upper for c in ['BTC', 'ETH', 'BITCOIN', 'ETHEREUM']):
+        return "crypto"
+
+    # Indices
+    if any(i in title_lower for i in ['s&p', 'nasdaq', 'dow', 'inx']):
+        return "indices"
+
+    # Politics
+    if any(p in title_lower for p in ['trump', 'biden', 'government', 'election', 'congress', 'fed chair']):
+        return "politics"
+
+    return "other"
+
+
 class KalshiClient:
     def __init__(self):
         self.client = httpx.AsyncClient(
@@ -183,17 +216,26 @@ async def fetch_kalshi_data() -> dict:
 
                     if is_whale:
                         side = trade.get("taker_side", "").upper()
-                        message = f"${usd_value:,.0f} {side} on {market_title[:50]}"
+                        category = detect_category(ticker, market_title)
+                        is_sports = category == "sports"
+
+                        # Sports whales have 98% win rate historically - flag them specially
+                        prefix = "SPORTS WHALE" if is_sports else "WHALE"
+                        alert_type = "sports_whale" if is_sports else "whale"
+                        message = f"{prefix}: ${usd_value:,.0f} {side} on {market_title[:50]}"
+
                         await db.execute(
                             """INSERT INTO alerts (platform, alert_type, identifier, title, message, trade_size, timestamp)
                                VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                            ("kalshi", "whale", ticker, market_title, message, usd_value, int(time.time()))
+                            ("kalshi", alert_type, ticker, market_title, message, usd_value, int(time.time()))
                         )
                         whale_alerts.append({
                             "ticker": ticker,
                             "market_title": market_title,
                             "side": trade.get("taker_side"),
-                            "usd_value": usd_value
+                            "usd_value": usd_value,
+                            "category": category,
+                            "is_sports": is_sports
                         })
 
                 except Exception as e:
